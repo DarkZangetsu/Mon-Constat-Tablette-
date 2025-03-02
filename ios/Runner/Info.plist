@@ -45,5 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	  <!-- Permission caméra -->
+        <key>NSCameraUsageDescription</key>
+        <string>Cette application a besoin d'accéder à la caméra pour prendre des photos pour l'état des lieux</string>
+
+        <!-- Permission galerie photo -->
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>Cette application a besoin d'accéder à votre galerie pour sélectionner des photos pour l'état des lieux</string>
+
+        <!-- Permission microphone -->
+        <key>NSMicrophoneUsageDescription</key>
+        <string>Cette application a besoin d'accéder au microphone pour enregistrer des notes audio pour l'état des lieux</string>
 </dict>
 </plist>

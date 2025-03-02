@@ -1,5 +1,12 @@
+import 'dart:io';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:constat/components/blueButton.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 
 class CreerEtatDesLieuxScreen extends StatefulWidget {
   const CreerEtatDesLieuxScreen({Key? key}) : super(key: key);
@@ -221,6 +228,8 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
     TextEditingController elementNameController = TextEditingController();
     TextEditingController elementDescController = TextEditingController();
     String selectedStatus = 'NEUF';
+    List<File> photos = [];
+    List<String> audioFiles = [];
 
     showDialog(
       context: context,
@@ -260,7 +269,7 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                             const SizedBox(height: 8),
                             const Text('Type d\'Élément:', style: TextStyle(fontSize: 14)),
                             const SizedBox(height: 10),
-                            ElementTypeGrid(elementNameController: elementNameController), // Passer le contrôleur ici
+                            ElementTypeGrid(elementNameController: elementNameController),
                             const SizedBox(height: 16),
                             TextField(
                               controller: elementNameController,
@@ -291,7 +300,40 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                               },
                             ),
                             const SizedBox(height: 20),
-                            PhotoAudioButtons(),
+
+                            // Media display section
+                            if (photos.isNotEmpty || audioFiles.isNotEmpty)
+                              MediaDisplay(
+                                photos: photos,
+                                audioFiles: audioFiles,
+                                onDeletePhoto: (index) {
+                                  setState(() {
+                                    photos.removeAt(index);
+                                  });
+                                },
+                                onDeleteAudio: (index) {
+                                  setState(() {
+                                    audioFiles.removeAt(index);
+                                  });
+                                },
+                              ),
+
+                            const SizedBox(height: 20),
+
+                            // Photo and audio buttons
+                            PhotoAudioButtons(
+                              onPhotoAdded: (File photo) {
+                                setState(() {
+                                  photos.add(photo);
+                                });
+                              },
+                              onAudioAdded: (String audioPath) {
+                                setState(() {
+                                  audioFiles.add(audioPath);
+                                });
+                              },
+                            ),
+
                             const SizedBox(height: 20),
                             BlueButton(
                               text: 'AJOUTER L\'ÉLÉMENT',
@@ -303,6 +345,8 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                                     name: name.isNotEmpty ? name : 'Nouvel Élément',
                                     description: description,
                                     status: selectedStatus,
+                                    photos: List.from(photos),
+                                    audioFiles: List.from(audioFiles),
                                   ));
                                 });
                                 Navigator.pop(context);
@@ -377,10 +421,53 @@ class SectionItem extends StatelessWidget {
             itemCount: section.elements.length,
             itemBuilder: (context, elementIndex) {
               final element = section.elements[elementIndex];
-              return ListTile(
-                title: Text(element.name),
-                subtitle: Text(element.description),
-                trailing: _getStatusColor(element.status),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    title: Text(element.name),
+                    subtitle: Text(element.description),
+                    trailing: _getStatusColor(element.status),
+                  ),
+
+                  // Afficher les photos s'il y en a
+                  if (element.photos.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 8.0),
+                      child: Container(
+                        height: 80,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: element.photos.length,
+                          itemBuilder: (ctx, photoIndex) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: Image.file(
+                                element.photos[photoIndex],
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+
+                  // Afficher les audios s'il y en a
+                  if (element.audioFiles.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.audiotrack, color: Colors.blue),
+                          Text('${element.audioFiles.length} audio(s) enregistré(s)'),
+                        ],
+                      ),
+                    ),
+
+                  const Divider(),
+                ],
               );
             },
           ),
@@ -523,21 +610,158 @@ class StatusButtonRow extends StatelessWidget {
   }
 }
 
-// Composant pour les boutons Photo et Audio
-class PhotoAudioButtons extends StatelessWidget {
-  const PhotoAudioButtons({Key? key}) : super(key: key);
+class PhotoAudioButtons extends StatefulWidget {
+  final Function(File) onPhotoAdded;
+  final Function(String) onAudioAdded;
+
+  const PhotoAudioButtons({
+    super.key,
+    required this.onPhotoAdded,
+    required this.onAudioAdded,
+  });
+
+  @override
+  State<PhotoAudioButtons> createState() => _PhotoAudioButtonsState();
+}
+
+class _PhotoAudioButtonsState extends State<PhotoAudioButtons> {
+  final ImagePicker _picker = ImagePicker();
+  // Create AudioRecorder instance instead of Record
+  final _audioRecorder = AudioRecorder();
+  String? _currentRecordingPath;
+  bool _isRecording = false;
+
+  @override
+  void dispose() {
+    // Properly close the recorder
+    _audioRecorder.dispose();
+    super.dispose();
+  }
+
+  Future<void> _getPhotoFromCamera() async {
+    // No change needed here
+    final status = await Permission.camera.request();
+    if (status.isGranted) {
+      final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
+      if (photo != null) {
+        widget.onPhotoAdded(File(photo.path));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Permission de caméra refusée')),
+      );
+    }
+  }
+
+  Future<void> _getPhotoFromGallery() async {
+    // No change needed here
+    final status = await Permission.photos.request();
+    if (status.isGranted) {
+      final XFile? photo = await _picker.pickImage(source: ImageSource.gallery);
+      if (photo != null) {
+        widget.onPhotoAdded(File(photo.path));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Permission d\'accès à la galerie refusée')),
+      );
+    }
+  }
+
+  Future<void> _showImageSourceDialog() async {
+    // No change needed here
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Ajouter une photo'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                GestureDetector(
+                  child: const Text('Prendre une photo'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _getPhotoFromCamera();
+                  },
+                ),
+                const Padding(padding: EdgeInsets.all(8.0)),
+                GestureDetector(
+                  child: const Text('Choisir depuis la galerie'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _getPhotoFromGallery();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleRecording() async {
+    final micStatus = await Permission.microphone.request();
+    final storageStatus = await Permission.storage.request();
+
+    if (micStatus.isGranted && storageStatus.isGranted) {
+      if (_isRecording) {
+        // Stop the recording with the updated API
+        final path = await _audioRecorder.stop();
+        setState(() {
+          _isRecording = false;
+          _currentRecordingPath = null;
+        });
+
+        if (path != null) {
+          widget.onAudioAdded(path);
+        }
+      } else {
+        // Start recording with the updated API
+        final appDir = await getApplicationDocumentsDirectory();
+        final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+        final path = '${appDir.path}/audio_$timestamp.m4a';
+
+        // Check if microphone is available before recording
+        if (await _audioRecorder.hasPermission()) {
+          // Updated method call for starting the recording
+          await _audioRecorder.start(
+            RecordConfig(
+              encoder: AudioEncoder.aacLc,
+              bitRate: 128000,
+              sampleRate: 44100,
+            ),
+            path: path,
+          );
+
+          setState(() {
+            _isRecording = true;
+            _currentRecordingPath = path;
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Permission de microphone refusée')),
+          );
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Permission de microphone ou stockage refusée')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // No change needed here
     return Column(
       children: [
         SizedBox(
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: () {
-              // Ajouter une photo
-            },
+            onPressed: _showImageSourceDialog,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2196F3),
               elevation: 0,
@@ -551,27 +775,181 @@ class PhotoAudioButtons extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 1), // Espace très petit entre les boutons
+        const SizedBox(height: 1),
         SizedBox(
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: () {
-              // Enregistrer un audio
-            },
+            onPressed: _toggleRecording,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0288D1), // Bleu légèrement plus foncé
+              backgroundColor: _isRecording ? Colors.red : const Color(0xFF0288D1),
               elevation: 0,
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.zero,
               ),
             ),
-            child: const Text(
-              'ENREGISTRER UN AUDIO',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            child: Text(
+              _isRecording ? 'ARRÊTER L\'ENREGISTREMENT' : 'ENREGISTRER UN AUDIO',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
           ),
         ),
+        if (_isRecording)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Enregistrement en cours...',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// Composant pour afficher les médias (photos et audios)
+class MediaDisplay extends StatefulWidget {
+  final List<File> photos;
+  final List<String> audioFiles;
+  final Function(int) onDeletePhoto;
+  final Function(int) onDeleteAudio;
+
+  const MediaDisplay({
+    Key? key,
+    required this.photos,
+    required this.audioFiles,
+    required this.onDeletePhoto,
+    required this.onDeleteAudio,
+  }) : super(key: key);
+
+  @override
+  State<MediaDisplay> createState() => _MediaDisplayState();
+}
+
+class _MediaDisplayState extends State<MediaDisplay> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  int? _playingIndex;
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  void _playAudio(int index) async {
+    if (_playingIndex == index) {
+      // Si déjà en lecture, arrêter
+      await _audioPlayer.stop();
+      setState(() {
+        _playingIndex = null;
+      });
+    } else {
+      // Sinon, commencer la lecture
+      await _audioPlayer.play(DeviceFileSource(widget.audioFiles[index]));
+      setState(() {
+        _playingIndex = index;
+      });
+
+      // Mettre à jour l'état quand l'audio est terminé
+      _audioPlayer.onPlayerComplete.listen((_) {
+        setState(() {
+          _playingIndex = null;
+        });
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.photos.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0, bottom: 4.0),
+            child: Text(
+              'Photos :',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+          Container(
+            height: 100,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: widget.photos.length,
+              itemBuilder: (context, index) {
+                return Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: Image.file(
+                        widget.photos[index],
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: GestureDetector(
+                        onTap: () => widget.onDeletePhoto(index),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+        if (widget.audioFiles.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0, bottom: 4.0),
+            child: Text(
+              'Audios Enregistrés :',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: widget.audioFiles.length,
+            itemBuilder: (context, index) {
+              final audioFile = File(widget.audioFiles[index]);
+              final fileName = audioFile.path.split('/').last;
+              final isPlaying = _playingIndex == index;
+
+              return ListTile(
+                leading: IconButton(
+                  icon: Icon(isPlaying ? Icons.stop : Icons.play_arrow),
+                  color: isPlaying ? Colors.red : Colors.blue,
+                  onPressed: () => _playAudio(index),
+                ),
+                title: Text('Audio ${index + 1}'),
+                subtitle: Text(fileName),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => widget.onDeleteAudio(index),
+                ),
+              );
+            },
+          ),
+        ],
       ],
     );
   }
@@ -594,10 +972,14 @@ class Element {
   final String name;
   final String description;
   final String status; // NEUF, BON ÉTAT, ÉTAT D'USAGE, DÉGRADÉ
+  final List<File> photos;
+  final List<String> audioFiles;
 
   Element({
     required this.name,
     required this.description,
     required this.status,
+    this.photos = const [],
+    this.audioFiles = const [],
   });
 }
