@@ -260,7 +260,7 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                             const SizedBox(height: 8),
                             const Text('Type d\'Élément:', style: TextStyle(fontSize: 14)),
                             const SizedBox(height: 10),
-                            ElementTypeGrid(),
+                            ElementTypeGrid(elementNameController: elementNameController), // Passer le contrôleur ici
                             const SizedBox(height: 16),
                             TextField(
                               controller: elementNameController,
@@ -420,7 +420,12 @@ class SectionItem extends StatelessWidget {
 
 // Composant pour la grille des types d'éléments
 class ElementTypeGrid extends StatelessWidget {
-  const ElementTypeGrid({Key? key}) : super(key: key);
+  final TextEditingController elementNameController;
+
+  const ElementTypeGrid({
+    Key? key,
+    required this.elementNameController,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -450,15 +455,21 @@ class ElementTypeGrid extends StatelessWidget {
   }
 
   Widget _buildElementChip(String label) {
-    return Chip(
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 12, color: Colors.white),
-      ),
-      backgroundColor: Colors.grey,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(0),
+    return InkWell(
+      onTap: () {
+        // Au lieu de créer un élément directement, on remplit le champ de texte
+        elementNameController.text = label;
+      },
+      child: Chip(
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Colors.white),
+        ),
+        backgroundColor: Colors.grey,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(0),
+        ),
       ),
     );
   }
