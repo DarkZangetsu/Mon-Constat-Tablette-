@@ -131,20 +131,20 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _buildSectionChip('EXTÉRIEUR'),
-                      _buildSectionChip('JARDIN'),
-                      _buildSectionChip('DRESSING'),
-                      _buildSectionChip('CUISINE'),
-                      _buildSectionChip('SALON'),
-                      _buildSectionChip('SALLE À MANGER'),
-                      _buildSectionChip('SÉJOUR'),
-                      _buildSectionChip('SALLE DE BAINS'),
-                      _buildSectionChip('TOILETTES'),
-                      _buildSectionChip('BUANDERIE'),
-                      _buildSectionChip('CHAMBRE 1'),
-                      _buildSectionChip('CHAMBRE 2'),
-                      _buildSectionChip('ESCALIER'),
-                      _buildSectionChip('CAVE'),
+                      _buildSectionChip('EXTÉRIEUR', sectionNameController),
+                      _buildSectionChip('JARDIN', sectionNameController),
+                      _buildSectionChip('DRESSING', sectionNameController),
+                      _buildSectionChip('CUISINE', sectionNameController),
+                      _buildSectionChip('SALON', sectionNameController),
+                      _buildSectionChip('SALLE À MANGER', sectionNameController),
+                      _buildSectionChip('SÉJOUR', sectionNameController),
+                      _buildSectionChip('SALLE DE BAINS', sectionNameController),
+                      _buildSectionChip('TOILETTES', sectionNameController),
+                      _buildSectionChip('BUANDERIE', sectionNameController),
+                      _buildSectionChip('CHAMBRE 1', sectionNameController),
+                      _buildSectionChip('CHAMBRE 2', sectionNameController),
+                      _buildSectionChip('ESCALIER', sectionNameController),
+                      _buildSectionChip('CAVE', sectionNameController),
                     ],
                   ),
                 ),
@@ -199,17 +199,11 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
     );
   }
 
-  Widget _buildSectionChip(String label) {
+  Widget _buildSectionChip(String label, TextEditingController sectionNameController) {
     return InkWell(
       onTap: () {
-        setState(() {
-          sections.add(Section(
-            name: label,
-            description: '',
-            elements: [],
-          ));
-          Navigator.pop(context);
-        });
+        // Instead of creating a section directly, just fill the text field
+        sectionNameController.text = label;
       },
       child: Chip(
         label: Text(label),
