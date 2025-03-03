@@ -22,13 +22,29 @@ class PhotoAudioButtons extends StatefulWidget {
 class _PhotoAudioButtonsState extends State<PhotoAudioButtons> {
   final ImagePicker _picker = ImagePicker();
   final _audioRecorder = AudioRecorder();
-  String? _currentRecordingPath;
   bool _isRecording = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Request permissions early when the widget initializes
+    _requestInitialPermissions();
+  }
 
   @override
   void dispose() {
     _audioRecorder.dispose();
     super.dispose();
+  }
+
+  // Request permissions when the widget is first initialized
+  Future<void> _requestInitialPermissions() async {
+    await Permission.microphone.request();
+    await Permission.storage.request();
+    // On newer Android versions (Android 10+), you need to use mediaLibrary instead
+    if (Platform.isAndroid) {
+      await Permission.mediaLibrary.request();
+    }
   }
 
   Future<void> _getPhotoFromCamera() async {
@@ -39,9 +55,8 @@ class _PhotoAudioButtonsState extends State<PhotoAudioButtons> {
         widget.onPhotoAdded(File(photo.path));
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Permission de caméra refusée')),
-      );
+      _showPermissionExplanationDialog('Caméra',
+          'L\'application a besoin d\'accéder à votre caméra pour prendre des photos.');
     }
   }
 
@@ -53,10 +68,36 @@ class _PhotoAudioButtonsState extends State<PhotoAudioButtons> {
         widget.onPhotoAdded(File(photo.path));
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Permission d\'accès à la galerie refusée')),
-      );
+      _showPermissionExplanationDialog('Galerie',
+          'L\'application a besoin d\'accéder à votre galerie pour sélectionner des photos.');
     }
+  }
+
+  Future<void> _showPermissionExplanationDialog(String permissionType, String explanation) async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Permission $permissionType requise'),
+          content: Text(explanation),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Ouvrir les paramètres'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                openAppSettings();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _showImageSourceDialog() async {
@@ -91,50 +132,81 @@ class _PhotoAudioButtonsState extends State<PhotoAudioButtons> {
     );
   }
 
+  Future<bool> _checkAndRequestAudioPermissions() async {
+    // Vérifier les statuts actuels avant de demander
+    final mediaLibraryStatus = Platform.isAndroid ? await Permission.mediaLibrary.status : PermissionStatus.granted;
+
+    if (Platform.isAndroid) print('Statut initial médiathèque: $mediaLibraryStatus');
+
+    // Demande des permissions
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.microphone,
+      Permission.storage,
+      if (Platform.isAndroid) Permission.mediaLibrary,
+    ].request();
+
+    if (Platform.isAndroid) print('Statut final médiathèque: ${statuses[Permission.mediaLibrary]}');
+
+    // Vérifier si toutes les permissions nécessaires sont accordées
+    if (statuses[Permission.microphone]!.isGranted &&
+        (statuses[Permission.storage]!.isGranted ||
+            (Platform.isAndroid && statuses[Permission.mediaLibrary]!.isGranted))) {
+      return true;
+    } else {
+      String refusedPermissions = "";
+      if (!statuses[Permission.microphone]!.isGranted) refusedPermissions += "Microphone ";
+      if (!statuses[Permission.storage]!.isGranted) refusedPermissions += "Stockage ";
+      if (Platform.isAndroid && !statuses[Permission.mediaLibrary]!.isGranted) refusedPermissions += "Médiathèque ";
+
+      _showPermissionExplanationDialog('Microphone et Stockage',
+          'L\'application a besoin d\'accéder à votre microphone pour enregistrer l\'audio et au stockage pour sauvegarder l\'enregistrement. Permissions refusées: $refusedPermissions');
+      return false;
+    }
+  }
+
   Future<void> _toggleRecording() async {
-    final micStatus = await Permission.microphone.request();
-    final storageStatus = await Permission.storage.request();
+    if (_isRecording) {
+      final path = await _audioRecorder.stop();
+      setState(() {
+        _isRecording = false;
+      });
 
-    if (micStatus.isGranted && storageStatus.isGranted) {
-      if (_isRecording) {
-        final path = await _audioRecorder.stop();
-        setState(() {
-          _isRecording = false;
-          _currentRecordingPath = null;
-        });
+      if (path != null) {
+        widget.onAudioAdded(path);
+      }
+    } else {
+      bool hasPermissions = await _checkAndRequestAudioPermissions();
 
-        if (path != null) {
-          widget.onAudioAdded(path);
-        }
-      } else {
-        final appDir = await getApplicationDocumentsDirectory();
-        final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-        final path = '${appDir.path}/audio_$timestamp.m4a';
+      if (hasPermissions) {
+        try {
+          final appDir = await getApplicationDocumentsDirectory();
+          final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+          final path = '${appDir.path}/audio_$timestamp.m4a';
 
-        if (await _audioRecorder.hasPermission()) {
-          await _audioRecorder.start(
-            RecordConfig(
-              encoder: AudioEncoder.aacLc,
-              bitRate: 128000,
-              sampleRate: 44100,
-            ),
-            path: path,
-          );
+          if (await _audioRecorder.hasPermission()) {
+            await _audioRecorder.start(
+              const RecordConfig(
+                encoder: AudioEncoder.aacLc,
+                bitRate: 128000,
+                sampleRate: 44100,
+              ),
+              path: path,
+            );
 
-          setState(() {
-            _isRecording = true;
-            _currentRecordingPath = path;
-          });
-        } else {
+            setState(() {
+              _isRecording = true;
+            });
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Permission de microphone refusée')),
+            );
+          }
+        } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Permission de microphone refusée')),
+            SnackBar(content: Text('Erreur d\'enregistrement: ${e.toString()}')),
           );
         }
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Permission de microphone ou stockage refusée')),
-      );
     }
   }
 
@@ -180,7 +252,7 @@ class _PhotoAudioButtonsState extends State<PhotoAudioButtons> {
           ),
         ),
         if (_isRecording)
-          Padding(
+          const Padding(
             padding: const EdgeInsets.only(top: 8.0),
             child: Text(
               'Enregistrement en cours...',
