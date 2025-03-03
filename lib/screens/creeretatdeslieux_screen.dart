@@ -238,7 +238,6 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
     List<String> audioFiles = [];
 
     String sectionName = sections[sectionIndex].name;
-    print('Section name being passed: "$sectionName"');
 
     showDialog(
       context: context,
