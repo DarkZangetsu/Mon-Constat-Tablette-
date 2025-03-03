@@ -8,6 +8,7 @@ import '../components/media_display.dart';
 import '../components/photo_audio_button.dart';
 import '../components/section_items.dart';
 import '../components/status_button_row.dart';
+import '../constants/section_types.dart';
 import '../models/models.dart';
 
 class Element {
@@ -155,22 +156,9 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: [
-                      _buildSectionChip('EXTÉRIEUR', sectionNameController),
-                      _buildSectionChip('JARDIN', sectionNameController),
-                      _buildSectionChip('DRESSING', sectionNameController),
-                      _buildSectionChip('CUISINE', sectionNameController),
-                      _buildSectionChip('SALON', sectionNameController),
-                      _buildSectionChip('SALLE À MANGER', sectionNameController),
-                      _buildSectionChip('SÉJOUR', sectionNameController),
-                      _buildSectionChip('SALLE DE BAINS', sectionNameController),
-                      _buildSectionChip('TOILETTES', sectionNameController),
-                      _buildSectionChip('BUANDERIE', sectionNameController),
-                      _buildSectionChip('CHAMBRE 1', sectionNameController),
-                      _buildSectionChip('CHAMBRE 2', sectionNameController),
-                      _buildSectionChip('ESCALIER', sectionNameController),
-                      _buildSectionChip('CAVE', sectionNameController),
-                    ],
+                    children: SectionTypes.allSections.map((sectionName) =>
+                        _buildSectionChip(sectionName, sectionNameController)
+                    ).toList(),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -249,6 +237,9 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
     List<File> photos = [];
     List<String> audioFiles = [];
 
+    String sectionName = sections[sectionIndex].name;
+    print('Section name being passed: "$sectionName"');
+
     showDialog(
       context: context,
       builder: (context) {
@@ -287,7 +278,10 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                             const SizedBox(height: 8),
                             const Text('Type d\'Élément:', style: TextStyle(fontSize: 14)),
                             const SizedBox(height: 10),
-                            ElementTypeGrid(elementNameController: elementNameController, sectionName: '',),
+                            ElementTypeGrid(
+                              elementNameController: elementNameController,
+                              sectionName: sectionName,
+                            ),
                             const SizedBox(height: 16),
                             TextField(
                               controller: elementNameController,

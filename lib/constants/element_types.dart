@@ -96,10 +96,14 @@ class ElementTypes {
     ]
   };
 
-  // Méthode pour obtenir tous les éléments pour une section spécifique
+  // Méthode pour obtenir uniquement les éléments spécifiques à une section
   static List<String> getElementsForSection(String sectionName) {
+    return sectionSpecific[sectionName] ?? [];
+  }
+
+  //Standard + spécifiques
+  static List<String> getAllElementsForSection(String sectionName) {
     List<String> sectionElements = sectionSpecific[sectionName] ?? [];
-    // Combine les éléments spécifiques avec les éléments standard
     return [...sectionElements, ...standard];
   }
 }

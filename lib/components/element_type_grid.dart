@@ -13,8 +13,18 @@ class ElementTypeGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Obtenir les éléments spécifiques à cette section
-    List<String> elements = ElementTypes.getElementsForSection(sectionName);
+    // Vérifier si la section est dans la liste des sections spécifiques
+    bool hasSpecificElements = ElementTypes.sectionSpecific.containsKey(sectionName);
+
+    List<String> elements;
+
+    if (hasSpecificElements) {
+      // Si la section a des éléments spécifiques, afficher ces éléments spécifiques
+      elements = ElementTypes.getElementsForSection(sectionName);
+    } else {
+      // Si la section n'a pas d'éléments spécifiques, afficher les éléments standard
+      elements = ElementTypes.standard;
+    }
 
     return Wrap(
       spacing: 8,
@@ -26,7 +36,6 @@ class ElementTypeGrid extends StatelessWidget {
   Widget _buildElementChip(String label) {
     return InkWell(
       onTap: () {
-        // Au lieu de créer un élément directement, on remplit le champ de texte
         elementNameController.text = label;
       },
       child: Chip(
