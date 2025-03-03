@@ -203,9 +203,6 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
               itemCount: _etatDesLieuxList.length,
               itemBuilder: (context, index) {
                 final etat = _etatDesLieuxList[index];
-                final String formattedDate =
-                    '${etat.createdAt.day}/${etat.createdAt.month}/${etat.createdAt.year} à ${etat.createdAt.hour}:${etat.createdAt.minute.toString().padLeft(2, '0')}';
-
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   elevation: 1,
@@ -239,22 +236,24 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
                             Row(
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.cloud_download, color: Colors.blue),
+                                  icon: Image.asset(
+                                    'lib/images/cloud-computing.png',
+                                    width: 24,
+                                    height: 24,
+                                  ),
                                   onPressed: () {
                                     // Export to cloud
                                   },
                                 ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.red,
+                                IconButton(
+                                  icon: Image.asset(
+                                    'lib/images/html5.png',
+                                    width: 24,
+                                    height: 24,
                                   ),
-                                  child: IconButton(
-                                    icon: const Icon(Icons.html, color: Colors.white),
-                                    onPressed: () {
-                                      // Export to HTML
-                                    },
-                                  ),
+                                  onPressed: () {
+                                    // Export to HTML
+                                  },
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete, color: Colors.red),
