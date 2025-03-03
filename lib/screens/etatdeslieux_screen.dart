@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../constants/status_constants.dart';
 import '../db/database_helper.dart';
 import '../models/models.dart';
 import 'creeretatdeslieux_screen.dart';
-import 'dart:io';
+
 
 class EtatDesLieuxScreen extends StatefulWidget {
   const EtatDesLieuxScreen({Key? key}) : super(key: key);
@@ -33,10 +34,8 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
 
       for (var etat in etatDesLieuxData) {
         final DateTime createdAt = DateTime.parse(etat['created_at']);
-        // Load sections for each état des lieux
         List<Section> sections = await _dbHelper.getSections(etat['id']);
 
-        // Create full EtatDesLieux object with sections
         EtatDesLieux etatComplet = EtatDesLieux(
           id: etat['id'],
           title: etat['title'],
@@ -205,34 +204,28 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
                 final etat = _etatDesLieuxList[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  elevation: 1,
+                  elevation: 2,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
-                    side: BorderSide(color: Colors.grey.shade300, width: 0.5),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header with title and icons
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
+                  color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'État des lieux: ${etat.title}',
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                'État des lieux: ${etat.title}',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                            // Action icons (export & delete)
+                            // Actions
                             Row(
                               children: [
                                 IconButton(
@@ -244,7 +237,10 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
                                   onPressed: () {
                                     // Export to cloud
                                   },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
                                 ),
+                                const SizedBox(width: 12),
                                 IconButton(
                                   icon: Image.asset(
                                     'lib/images/html5.png',
@@ -254,25 +250,201 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
                                   onPressed: () {
                                     // Export to HTML
                                   },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
                                 ),
+                                const SizedBox(width: 12),
                                 IconButton(
                                   icon: const Icon(Icons.delete, color: Colors.red),
                                   onPressed: () {
                                     _showDeleteConfirmation(context, etat.id!);
                                   },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
                                 ),
                               ],
                             ),
                           ],
                         ),
-                      ),
 
-                      // Display sections and elements directly in the card
-                      for (final section in etat.sections)
-                        _buildSectionWidget(section),
+                        // Sections et Elements
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: etat.sections.map((section) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Section: ${section.name}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
 
-                      const SizedBox(height: 16),
-                    ],
+                                // Elements List avec séparateurs
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: List.generate(section.elements.length, (index) {
+                                    final element = section.elements[index];
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // L'élément lui-même
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 12, left: 16),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  Expanded(
+                                                    child: RichText(
+                                                      text: TextSpan(
+                                                        style: const TextStyle(
+                                                          color: Colors.black,
+                                                          fontSize: 14,
+                                                        ),
+                                                        children: [
+                                                          const TextSpan(
+                                                            text: 'Élément: ',
+                                                            style: TextStyle(
+                                                              fontWeight: FontWeight.w400,
+                                                            ),
+                                                          ),
+                                                          TextSpan(
+                                                            text: element.name,
+                                                            style: const TextStyle(
+                                                              fontWeight: FontWeight.w500,
+                                                            ),
+                                                          ),
+                                                          // Description in parentheses if available
+                                                          if (element.description.isNotEmpty)
+                                                            TextSpan(
+                                                              text: ' - (${element.description})',
+                                                              style: const TextStyle(
+                                                                fontWeight: FontWeight.w400,
+                                                              ),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+
+                                                  // Status badge if not empty, otherwise black square
+                                                  if (element.status.isNotEmpty)
+                                                    Container(
+                                                      margin: const EdgeInsets.only(left: 8),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: StatusConstants.getStatusColor(element.status),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: Text(
+                                                        element.status,
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  else
+                                                    Container(
+                                                      margin: const EdgeInsets.only(left: 8),
+                                                      width: 16,
+                                                      height: 16,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.black,
+                                                        borderRadius: BorderRadius.circular(2),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+
+                                              // Photos before audio
+                                              if (element.photos.isNotEmpty)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 8),
+                                                  child: SizedBox(
+                                                    height: 80,
+                                                    child: ListView.builder(
+                                                      scrollDirection: Axis.horizontal,
+                                                      itemCount: element.photos.length,
+                                                      itemBuilder: (context, photoIndex) {
+                                                        return Padding(
+                                                          padding: const EdgeInsets.only(right: 8),
+                                                          child: ClipRRect(
+                                                            borderRadius: BorderRadius.circular(4),
+                                                            child: Image.file(
+                                                              element.photos[photoIndex],
+                                                              width: 80,
+                                                              height: 80,
+                                                              fit: BoxFit.cover,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                                  ),
+                                                ),
+
+                                              // Audio buttons
+                                              if (element.audioFiles.isNotEmpty)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 8),
+                                                  child: Row(
+                                                    children: element.audioFiles.map((audio) {
+                                                      return Padding(
+                                                        padding: const EdgeInsets.only(right: 8),
+                                                        child: Container(
+                                                          width: 40,
+                                                          height: 40,
+                                                          decoration: BoxDecoration(
+                                                            border: Border.all(color: Colors.grey.shade300),
+                                                            borderRadius: BorderRadius.circular(20),
+                                                          ),
+                                                          child: IconButton(
+                                                            icon: const Icon(
+                                                              Icons.play_arrow,
+                                                              color: Colors.blue,
+                                                              size: 20,
+                                                            ),
+                                                            onPressed: () {
+                                                              // Play audio logic
+                                                            },
+                                                            padding: EdgeInsets.zero,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Séparateur entre les éléments (sauf pour le dernier)
+                                        if (index < section.elements.length - 1)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 12, left: 16, right: 16),
+                                            child: Divider(
+                                              color: Colors.grey.shade300,
+                                              height: 1,
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  }),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -299,124 +471,6 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildSectionWidget(Section section) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section title
-          Text(
-            'Section: ${section.name}',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Elements in this section
-          for (final element in section.elements)
-            _buildElementWidget(element),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildElementWidget(Elements element) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16.0, bottom: 12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Élément: ${element.name}',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-              ),
-              if (element.status == 'DÉGRADÉ')
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    'Dégradé',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ],
-          ),
-
-          // Audio file indicators
-          if (element.audioFiles.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Row(
-                children: [
-                  for (var _ in element.audioFiles)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.play_arrow, color: Colors.blue, size: 20),
-                          onPressed: () {
-                            // Logic to play audio file
-                          },
-                          constraints: BoxConstraints.tightFor(width: 40, height: 40),
-                          padding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-          // Display photos if any
-          if (element.photos.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: SizedBox(
-                height: 80,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: element.photos.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: Image.file(
-                        element.photos[index],
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
