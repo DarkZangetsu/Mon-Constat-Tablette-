@@ -9,26 +9,12 @@ import '../components/photo_audio_button.dart';
 import '../components/section_items.dart';
 import '../components/status_button_row.dart';
 import '../constants/section_types.dart';
+import '../db/database_helper.dart';
 import '../models/models.dart';
 
-class Element {
-  final String name;
-  final String description;
-  final String status; // NEUF, BON ÉTAT, ÉTAT D'USAGE, DÉGRADÉ
-  final List<File> photos;
-  final List<String> audioFiles;
-
-  Element({
-    required this.name,
-    required this.description,
-    required this.status,
-    this.photos = const [],
-    this.audioFiles = const [],
-  });
-}
 
 class CreerEtatDesLieuxScreen extends StatefulWidget {
-  const CreerEtatDesLieuxScreen({Key? key}) : super(key: key);
+  const CreerEtatDesLieuxScreen({super.key});
 
   @override
   State<CreerEtatDesLieuxScreen> createState() => _CreerEtatDesLieuxScreenState();
@@ -36,7 +22,9 @@ class CreerEtatDesLieuxScreen extends StatefulWidget {
 
 class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
   final TextEditingController _titleController = TextEditingController(text: 'Test');
+  final DatabaseHelper _dbHelper = DatabaseHelper();
   List<Section> sections = [];
+  bool _isSaving = false;
 
   @override
   Widget build(BuildContext context) {
@@ -112,10 +100,8 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
 
                     // Bouton du bas
                     BlueButton(
-                      text: 'CRÉER L\'ÉTAT DES LIEUX',
-                      onPressed: () {
-                        // Logique pour finaliser la création
-                      },
+                      text: _isSaving ? 'SAUVEGARDE EN COURS...' : 'CRÉER L\'ÉTAT DES LIEUX',
+                      onPressed: _isSaving ? () {} : _saveEtatDesLieux,
                     ),
                   ],
                 ),
@@ -125,6 +111,52 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveEtatDesLieux() async {
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez saisir un titre pour l\'état des lieux')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      // Insérer l'état des lieux et récupérer son ID
+      int etatDesLieuxId = await _dbHelper.insertEtatDesLieux(_titleController.text.trim());
+
+
+      // Enregistrer chaque section
+      for (var section in sections) {
+        int sectionId = await _dbHelper.insertSection(etatDesLieuxId, section);
+
+        // Enregistrer chaque élément de la section
+        for (var element in section.elements) {
+          await _dbHelper.insertElement(sectionId, element);
+        }
+      }
+
+      // Afficher un message de succès
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('État des lieux enregistré avec succès!')),
+      );
+
+      // Rediriger vers la liste des états des lieux ou fermer cette page
+      Navigator.pop(context);
+    } catch (e) {
+      // Afficher une erreur si quelque chose ne va pas
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la sauvegarde: ${e.toString()}')),
+      );
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
   }
 
   void _showAddSectionDialog() {
@@ -238,6 +270,7 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
     List<String> audioFiles = [];
 
     String sectionName = sections[sectionIndex].name;
+    print('Section name being passed: "$sectionName"');
 
     showDialog(
       context: context,
@@ -352,7 +385,7 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                                 this.setState(() {
                                   String name = elementNameController.text.trim();
                                   String description = elementDescController.text.trim();
-                                  sections[sectionIndex].elements.add(Element(
+                                  sections[sectionIndex].elements.add(Elements(
                                     name: name.isNotEmpty ? name : 'Nouvel Élément',
                                     description: description,
                                     status: selectedStatus,
