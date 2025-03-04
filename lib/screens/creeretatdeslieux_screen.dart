@@ -22,7 +22,7 @@ class CreerEtatDesLieuxScreen extends StatefulWidget {
 }
 
 class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
-  final TextEditingController _titleController = TextEditingController(text: 'Test');
+  final TextEditingController _titleController = TextEditingController(text: 'Etat des lieux');
   final DatabaseHelper _dbHelper = DatabaseHelper();
   List<Section> sections = [];
   bool _isSaving = false;

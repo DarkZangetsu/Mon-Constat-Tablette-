@@ -401,26 +401,6 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
           ),
         ],
       ),
-      // Bottom blue indicator
-      bottomNavigationBar: Container(
-        height: 4,
-        child: Row(
-          children: [
-            Expanded(
-              flex: 10,
-              child: Container(
-                color: const Color(0xFF0277BD),
-              ),
-            ),
-            Expanded(
-              flex: 90,
-              child: Container(
-                color: Colors.grey.shade300,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
