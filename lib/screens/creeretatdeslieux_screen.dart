@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:constat/components/blueButton.dart';
+import 'package:constat/components/drawer.dart';
 import 'package:flutter/material.dart';
 
 import '../components/element_type_grid.dart';
@@ -32,21 +33,20 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black),
-          onPressed: () {},
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.black),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
         ),
         title: const Text(
           'Créer un état des lieux',
           style: TextStyle(color: Colors.black),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-            onPressed: () {},
-          ),
-        ],
       ),
+      drawer: const AppDrawer(),
       body: Container(
         color: const Color(0xFFF5F5F5),
         child: Column(
@@ -56,7 +56,6 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    // Champ de texte pour le titre
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -71,8 +70,6 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Bouton Ajouter une section
                     BlueButton(
                       text: 'AJOUTER UNE SECTION',
                       onPressed: () {
