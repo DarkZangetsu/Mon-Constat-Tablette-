@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:constat/screens/welcom_screen.dart';
+import 'package:constat/screens/login_screen.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const WelcomeScreen(),
+      home: const LoginScreen(),
     );
   }
 }
