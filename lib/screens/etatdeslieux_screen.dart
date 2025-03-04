@@ -1,13 +1,18 @@
+import 'dart:io';
+
 import 'package:constat/components/drawer.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/status_constants.dart';
 import '../db/database_helper.dart';
 import '../models/models.dart';
+import '../services/cloudexport_service.dart';
 import 'creeretatdeslieux_screen.dart';
 
 
 class EtatDesLieuxScreen extends StatefulWidget {
   const EtatDesLieuxScreen({Key? key}) : super(key: key);
+
 
   @override
   State<EtatDesLieuxScreen> createState() => _EtatDesLieuxScreenState();
@@ -15,12 +20,24 @@ class EtatDesLieuxScreen extends StatefulWidget {
 
 class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
+  final CloudExportService _cloudExportService = CloudExportService();
   bool _isLoading = true;
   List<EtatDesLieux> _etatDesLieuxList = [];
+  String? _userIdgens;
+
 
   @override
   void initState() {
     super.initState();
+    _loadEtatDesLieux();
+    _loadUserIdgens();
+  }
+
+  Future<void> _loadUserIdgens() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userIdgens = prefs.getString('user_idgens');
+    });
     _loadEtatDesLieux();
   }
 
@@ -56,6 +73,43 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Erreur'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _exportEtatDesLieux(EtatDesLieux etat) {
+    if (_userIdgens == null) {
+      _showErrorDialog('Utilisateur non connecté. Veuillez vous reconnecter.');
+      return;
+    }
+
+    _cloudExportService.exportEtatDesLieux(
+      context: context,
+      idgens: int.parse(_userIdgens!), // Convert stored idgens to int
+      idConstat: etat.id!,
+      filename: 'etat_des_lieux_${etat.title}',
+      htmlContent: _generateHtmlContent(etat),
+      images: _collectImagesFromEtat(etat),
+      audioFiles: _collectAudioFilesFromEtat(etat),
+    );
   }
 
   @override
@@ -124,7 +178,7 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
             ),
           ),
 
-          // Liste des états des lieux ou message d'information
+          // Liste des états des lieux
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF0277BD)))
@@ -134,7 +188,7 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
               width: double.infinity,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF9C4), // Light yellow
+                color: const Color(0xFFFFF9C4),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const Center(
@@ -183,9 +237,7 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
                                     width: 24,
                                     height: 24,
                                   ),
-                                  onPressed: () {
-                                    // Export to cloud
-                                  },
+                                  onPressed: () => _exportEtatDesLieux(etat),
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
                                 ),
@@ -430,5 +482,100 @@ class _EtatDesLieuxScreenState extends State<EtatDesLieuxScreen> {
         );
       },
     );
+  }
+}
+
+extension EtatDesLieuxExportHelpers on _EtatDesLieuxScreenState {
+  /// Generer html document pour etat des lieux
+  String _generateHtmlContent(EtatDesLieux etat) {
+    StringBuffer htmlContent = StringBuffer();
+
+    // Html doc
+    htmlContent.write('''
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <title>État des Lieux: ${etat.title}</title>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+            h1 { color: #333; }
+            h2 { color: #666; }
+            .section { margin-bottom: 20px; }
+            .element { margin-bottom: 10px; }
+            .status { font-weight: bold; }
+            img { max-width: 300px; height: auto; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>État des Lieux: ${etat.title}</h1>
+        <p>Créé le: ${etat.createdAt.toLocal()}</p>
+    ''');
+
+    // Iteration de section
+    for (var section in etat.sections) {
+      htmlContent.write('<div class="section">');
+      htmlContent.write('<h2>Section: ${section.name}</h2>');
+
+      // Iteration element section
+      for (var element in section.elements) {
+        htmlContent.write('<div class="element">');
+        htmlContent.write('<p>Élément: ${element.name}');
+
+        // description
+        if (element.description.isNotEmpty) {
+          htmlContent.write(' - (${element.description})');
+        }
+        htmlContent.write('</p>');
+
+        // Status disponible
+        if (element.status.isNotEmpty) {
+          htmlContent.write('<p class="status">Statut: ${element.status}</p>');
+        }
+
+        // photos
+        if (element.photos.isNotEmpty) {
+          htmlContent.write('<div class="photos">');
+          for (var photo in element.photos) {
+            htmlContent.write('<img src="${photo.path}" alt="Photo de ${element.name}">');
+          }
+          htmlContent.write('</div>');
+        }
+
+        htmlContent.write('</div>');
+      }
+
+      htmlContent.write('</div>');
+    }
+
+    htmlContent.write('</body></html>');
+
+    return htmlContent.toString();
+  }
+
+  /// Collecter tout les images d'un État des Lieux
+  List<File> _collectImagesFromEtat(EtatDesLieux etat) {
+    List<File> images = [];
+    for (var section in etat.sections) {
+      for (var element in section.elements) {
+        images.addAll(element.photos);
+      }
+    }
+
+    return images;
+  }
+
+  /// Collecter tout les audios d'un État des Lieux
+  List<File> _collectAudioFilesFromEtat(EtatDesLieux etat) {
+    List<File> audioFiles = [];
+    for (var section in etat.sections) {
+      for (var element in section.elements) {
+        audioFiles.addAll(
+            element.audioFiles.map((audioPath) => File(audioPath)).toList()
+        );
+      }
+    }
+
+    return audioFiles;
   }
 }
