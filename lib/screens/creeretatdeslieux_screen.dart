@@ -101,7 +101,7 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                     // Bouton du bas
                     BlueButton(
                       text: _isSaving ? 'SAUVEGARDE EN COURS...' : 'CRÉER L\'ÉTAT DES LIEUX',
-                      onPressed: _isSaving ? () {} : _saveEtatDesLieux,
+                      onPressed: _isSaving ? () {} : _showConfirmationDialog,
                     ),
                   ],
                 ),
@@ -110,6 +110,34 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  // Dialog de confirmation pour la création de l'état des lieux
+  void _showConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmation'),
+          content: const Text('Voulez-vous vraiment créer cet état des lieux ?'),
+          actions: [
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Confirmer'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _saveEtatDesLieux();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -223,22 +251,52 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                   child: BlueButton(
                     text: 'CRÉER LA SECTION',
                     onPressed: () {
-                      setState(() {
-                        String name = sectionNameController.text.trim();
-                        String description = sectionDescController.text.trim();
-                        sections.add(Section(
-                          name: name.isNotEmpty ? name : 'Nouvelle Section',
-                          description: description,
-                          elements: [],
-                        ));
-                      });
-                      Navigator.pop(context);
+                      _showConfirmSectionDialog(context, sectionNameController, sectionDescController);
                     },
                   ),
                 ),
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  // Dialog de confirmation pour la création de section
+  void _showConfirmSectionDialog(BuildContext context, TextEditingController sectionNameController, TextEditingController sectionDescController) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirmation'),
+          content: const Text('Voulez-vous vraiment créer cette section ?'),
+          actions: [
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Confirmer'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Fermer le dialog de confirmation
+
+                setState(() {
+                  String name = sectionNameController.text.trim();
+                  String description = sectionDescController.text.trim();
+                  sections.add(Section(
+                    name: name.isNotEmpty ? name : 'Nouvelle Section',
+                    description: description,
+                    elements: [],
+                  ));
+                });
+
+                Navigator.pop(context); // Fermer le dialog de création de section
+              },
+            ),
+          ],
         );
       },
     );
@@ -382,18 +440,16 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
                             BlueButton(
                               text: 'AJOUTER L\'ÉLÉMENT',
                               onPressed: () {
-                                this.setState(() {
-                                  String name = elementNameController.text.trim();
-                                  String description = elementDescController.text.trim();
-                                  sections[sectionIndex].elements.add(Elements(
-                                    name: name.isNotEmpty ? name : 'Nouvel Élément',
-                                    description: description,
-                                    status: selectedStatus,
-                                    photos: List.from(photos),
-                                    audioFiles: List.from(audioFiles),
-                                  ));
-                                });
-                                Navigator.pop(context);
+                                _showConfirmElementDialog(
+                                    context,
+                                    sectionIndex,
+                                    elementNameController,
+                                    elementDescController,
+                                    selectedStatus,
+                                    photos,
+                                    audioFiles,
+                                    setState
+                                );
                               },
                             ),
                             const SizedBox(height: 16),
@@ -406,6 +462,56 @@ class _CreerEtatDesLieuxScreenState extends State<CreerEtatDesLieuxScreen> {
               ),
             );
           },
+        );
+      },
+    );
+  }
+
+  // Dialog de confirmation pour l'ajout d'élément
+  void _showConfirmElementDialog(
+      BuildContext context,
+      int sectionIndex,
+      TextEditingController elementNameController,
+      TextEditingController elementDescController,
+      String selectedStatus,
+      List<File> photos,
+      List<String> audioFiles,
+      StateSetter setDialogState
+      ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirmation'),
+          content: const Text('Voulez-vous vraiment ajouter cet élément ?'),
+          actions: [
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Confirmer'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Fermer le dialog de confirmation
+
+                setState(() {
+                  String name = elementNameController.text.trim();
+                  String description = elementDescController.text.trim();
+                  sections[sectionIndex].elements.add(Elements(
+                    name: name.isNotEmpty ? name : 'Nouvel Élément',
+                    description: description,
+                    status: selectedStatus,
+                    photos: List.from(photos),
+                    audioFiles: List.from(audioFiles),
+                  ));
+                });
+
+                Navigator.pop(context); // Fermer le dialog d'ajout d'élément
+              },
+            ),
+          ],
         );
       },
     );
